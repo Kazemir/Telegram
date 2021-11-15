@@ -4554,6 +4554,7 @@
     <string name="AccActionMessageOptions">Message options</string>
     <string name="AccActionEnterSelectionMode">Enter selection mode</string>
     <string name="AccDescrEmojiButton">Emoji, stickers, and GIFs</string>
+    <string name="AccDescrSendAsButton">Send message as…</string>
     <string name="AccDescrAttachButton">Attach media</string>
     <string name="AccDescrChanSilentOn">Send silently</string>
     <string name="AccDescrChanSilentOff">Send notifications</string>

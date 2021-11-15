@@ -241,6 +241,23 @@ public class AlertsCreator {
                     }
                     showSimpleToast(fragment, LocaleController.getString("MessageNoForwardsRestriction", R.string.MessageNoForwardsRestriction));
                     break;
+                case "SEND_AS_PEER_INVALID":
+                    TLRPC.InputPeer peer = null;
+                    if (request instanceof TLRPC.TL_messages_sendMessage) {
+                        peer = ((TLRPC.TL_messages_sendMessage) request).peer;
+                    } else if (request instanceof TLRPC.TL_messages_sendMedia) {
+                        peer = ((TLRPC.TL_messages_sendMedia) request).peer;
+                    } else if (request instanceof TLRPC.TL_messages_sendInlineBotResult) {
+                        peer = ((TLRPC.TL_messages_sendInlineBotResult) request).peer;
+                    } else if (request instanceof TLRPC.TL_messages_sendMultiMedia) {
+                        peer = ((TLRPC.TL_messages_sendMultiMedia) request).peer;
+                    } else if (request instanceof TLRPC.TL_messages_forwardMessages) {
+                        peer = ((TLRPC.TL_messages_forwardMessages) request).to_peer;
+                    }
+                    if (peer != null) {
+                        MessagesController.getInstance(currentAccount).loadFullChat(peer.channel_id, 0, true);
+                    }
+                    break;
             }
         } else if (request instanceof TLRPC.TL_messages_importChatInvite) {
             if (error.text.startsWith("FLOOD_WAIT")) {

@@ -1964,7 +1964,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     req.drop_author = forwardFromMyName;
                     req.drop_media_captions = hideCaption;
                     req.with_my_score = messages.size() == 1 && messages.get(0).messageOwner.with_my_score;
-
+                    // TODO req.sendAs
                     final ArrayList<TLRPC.Message> newMsgObjArr = arr;
                     final ArrayList<MessageObject> newMsgArr = new ArrayList<>(objArr);
                     final LongSparseArray<TLRPC.Message> messagesByRandomIdsFinal = messagesByRandomIds;
@@ -3016,6 +3016,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
         request.random_id = random_id != 0 ? random_id : getNextRandomId();
         request.message = "";
         request.media = game;
+        // TODO request.send_as
         final long newTaskId;
         if (taskId == 0) {
             NativeByteBuffer data = null;
@@ -3652,6 +3653,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                         reqSend.schedule_date = scheduleDate;
                         reqSend.flags |= 1024;
                     }
+                    // TODO reqSend.send_as;
                     performSendMessageRequest(reqSend, newMsgObj, null, null, parentObject, params, scheduleDate != 0);
                     if (retryMessageObject == null) {
                         getMediaDataController().cleanDraft(peer, replyToTopMsg != null ? replyToTopMsg.getId() : 0, false);
@@ -3959,6 +3961,9 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             request = new TLRPC.TL_messages_sendMultiMedia();
                             request.peer = sendToPeer;
                             request.silent = newMsg.silent;
+                            //request.send_as
+                            // todo request.send_as
+                            // request.flags |= 8192;
                             if (newMsg.reply_to != null && newMsg.reply_to.reply_to_msg_id != 0) {
                                 request.flags |= 1;
                                 request.reply_to_msg_id = newMsg.reply_to.reply_to_msg_id;
@@ -4006,6 +4011,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                             request.schedule_date = scheduleDate;
                             request.flags |= 1024;
                         }
+                        // TODO request.send_as
 
                         if (delayedMessage != null) {
                             delayedMessage.sendRequest = request;
@@ -4356,6 +4362,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     reqSend.schedule_date = scheduleDate;
                     reqSend.flags |= 1024;
                 }
+                // TODO reqSend.sendAs
                 reqSend.random_id.add(newMsg.random_id);
                 if (retryMessageObject.getId() >= 0) {
                     reqSend.id.add(retryMessageObject.getId());
@@ -4383,6 +4390,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 }
                 reqSend.query_id = Utilities.parseLong(params.get("query_id"));
                 reqSend.id = params.get("id");
+                // TODO reqSend.sendAs
                 if (retryMessageObject == null) {
                     reqSend.clear_draft = true;
                     getMediaDataController().cleanDraft(peer, replyToTopMsg != null ? replyToTopMsg.getId() : 0, false);
@@ -5784,6 +5792,19 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                     messageObject.scheduled = true;
                     retrySendMessage(messageObject, true);
                 }
+            }
+        });
+    }
+
+    public void saveDefaultSendAs(long dialogId, TLRPC.InputPeer sendAs) {
+        TLRPC.TL_messages_saveDefaultSendAs req = new TLRPC.TL_messages_saveDefaultSendAs();
+        req.peer = getMessagesController().getInputPeer(dialogId);
+        req.send_as = sendAs;
+        getConnectionsManager().sendRequest(req, new RequestDelegate() {
+
+            @Override
+            public void run(TLObject response, TLRPC.TL_error error) {
+                // TODO
             }
         });
     }
