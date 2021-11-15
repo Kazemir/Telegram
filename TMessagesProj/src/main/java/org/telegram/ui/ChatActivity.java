@@ -60,6 +60,7 @@ import android.text.TextUtils;
 import android.text.style.CharacterStyle;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.URLSpan;
+import android.util.Log;
 import android.util.Property;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -219,6 +220,7 @@ import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.ReportAlert;
 import org.telegram.ui.Components.SearchCounterView;
 import org.telegram.ui.Components.ShareAlert;
+import org.telegram.ui.Components.SharedMediaLayout;
 import org.telegram.ui.Components.Size;
 import org.telegram.ui.Components.SizeNotifierFrameLayout;
 import org.telegram.ui.Components.StickersAlert;
@@ -590,6 +592,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     private long mergeDialogId;
 
     private boolean showScrollToMessageError;
+    private int startJumpToDate;
     private int startLoadFromMessageId;
     private int startLoadFromMessageIdSaved;
     private int startLoadFromMessageOffset = Integer.MAX_VALUE;
@@ -1166,6 +1169,16 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             if (view instanceof ChatMessageCell) {
                 startMultiselect(position);
             }
+            if (actionBar == null || !actionBar.isActionModeShowed()) {
+                if (DialogObject.isUserDialog(dialog_id) && view instanceof ChatActionCell) {
+                    ChatActionCell cell = (ChatActionCell) view;
+                    MessageObject messageObject = cell.getMessageObject();
+                    if (messageObject.isDateObject) {
+                        openCalendar(messageObject.messageOwner.date);
+                        return true;
+                    }
+                }
+            }
             return true;
         }
 
@@ -1335,6 +1348,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         voiceChatHash = arguments.getString("voicechat", null);
         inlineReturn = arguments.getLong("inline_return", 0);
         String inlineQuery = arguments.getString("inline_query");
+        startJumpToDate = arguments.getInt("date", 0);
         startLoadFromMessageId = arguments.getInt("message_id", 0);
         startFromVideoTimestamp = arguments.getInt("video_timestamp", -1);
         threadUnreadMessagesCount = arguments.getInt("unread_count", 0);
@@ -8935,6 +8949,37 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
         }
     }
 
+    private void openCalendar(int customDate) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis((long) customDate * 1000);
+        int year = calendar.get(Calendar.YEAR);
+        int monthOfYear = calendar.get(Calendar.MONTH);
+        int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
+
+        calendar.clear();
+        calendar.set(year, monthOfYear, dayOfMonth);
+        int date = (int) (calendar.getTime().getTime() / 1000);
+
+        Bundle bundle = new Bundle();
+        bundle.putLong("dialog_id", dialog_id);
+        MediaCalendarActivity calendarActivity = new MediaCalendarActivity(bundle, SharedMediaLayout.FILTER_PHOTOS_AND_VIDEOS, date);
+        calendarActivity.setChatCallback(new MediaCalendarActivity.ChatCallback() {
+            @Override
+            public void onDateSelected(int date) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTimeInMillis((long) date * 1000);
+                int year = calendar.get(Calendar.YEAR);
+                int monthOfYear = calendar.get(Calendar.MONTH);
+                int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
+
+                calendar.clear();
+                calendar.set(year, monthOfYear, dayOfMonth);
+                jumpToDate((int) (calendar.getTime().getTime() / 1000));
+            }
+        });
+        presentFragment(calendarActivity);
+    }
+
     public void processInlineBotContextPM(TLRPC.TL_inlineBotSwitchPM object) {
         if (object == null) {
             return;
@@ -14001,6 +14046,18 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
                         }
                     }
                 }
+            } else if (startJumpToDate != 0) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTimeInMillis((long) startJumpToDate * 1000);
+                int year = calendar.get(Calendar.YEAR);
+                int monthOfYear = calendar.get(Calendar.MONTH);
+                int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
+
+                calendar.clear();
+                calendar.set(year, monthOfYear, dayOfMonth);
+                jumpToDate((int) (calendar.getTime().getTime() / 1000));
+
+                startJumpToDate = 0;
             }
             chatWasReset = false;
         } else if (id == NotificationCenter.invalidateMotionBackground) {

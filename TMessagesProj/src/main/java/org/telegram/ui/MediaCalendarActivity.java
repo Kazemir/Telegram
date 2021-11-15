@@ -4,14 +4,15 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextPaint;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -22,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.DownloadController;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.ImageLocation;
@@ -30,24 +32,19 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
-import org.telegram.messenger.SharedConfig;
-import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.SimpleTextView;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ActionBar.ThemeDescription;
-import org.telegram.ui.Components.FlickerLoadingView;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 import org.telegram.ui.Components.SharedMediaLayout;
 
-import java.time.DayOfWeek;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Random;
 
 public class MediaCalendarActivity extends BaseFragment {
 
@@ -72,6 +69,7 @@ public class MediaCalendarActivity extends BaseFragment {
 
     CalendarAdapter adapter;
     Callback callback;
+    ChatCallback chatCallback;
 
 
     SparseArray<SparseArray<PeriodDay>> messagesByYearMounth = new SparseArray<>();
@@ -352,6 +350,7 @@ public class MediaCalendarActivity extends BaseFragment {
 
         SparseArray<PeriodDay> messagesByDays = new SparseArray<>();
         SparseArray<ImageReceiver> imagesByDays = new SparseArray<>();
+        SparseArray<DayHolder> dayHolders = new SparseArray<>();
 
         SparseArray<PeriodDay> animatedFromMessagesByDays = new SparseArray<>();
         SparseArray<ImageReceiver> animatedFromImagesByDays = new SparseArray<>();
@@ -446,7 +445,12 @@ public class MediaCalendarActivity extends BaseFragment {
             Calendar calendar = Calendar.getInstance();
             calendar.set(year, monthInYear, 0);
             startDayOfWeek = (calendar.get(Calendar.DAY_OF_WEEK) + 6) % 7;
-            startMonthTime= (int) (calendar.getTimeInMillis() / 1000L);
+            startMonthTime = (int) (calendar.getTimeInMillis() / 1000L);
+
+            for (int i = 0; i < daysInMonth; i++) {
+                int time = startMonthTime + (i + 1) * 86400;
+                dayHolders.put(i, new DayHolder(time));
+            }
 
             int totalColumns = daysInMonth + startDayOfWeek;
             cellCount = (int) (totalColumns / 7f) + (totalColumns % 7 == 0 ? 0 : 1);
@@ -463,17 +467,57 @@ public class MediaCalendarActivity extends BaseFragment {
         float pressedX;
         float pressedY;
 
+        private final Runnable longPressedRunnable = new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < dayHolders.size(); i++) {
+                    DayHolder dayHolder = dayHolders.valueAt(i);
+                    if (dayHolder.getDrawRegion().contains(pressedX, pressedY)) {
+                        showChatPreview(dayHolder.date);
+                        return;
+                    }
+                }
+            }
+        };
+
+        private boolean showChatPreview(int date) {
+            Bundle args = new Bundle();
+            if (DialogObject.isEncryptedDialog(dialogId)) {
+                return false;
+            } else {
+                if (DialogObject.isUserDialog(dialogId)) {
+                    args.putLong("user_id", dialogId);
+                } else {
+                    args.putLong("chat_id", -dialogId);
+                }
+            }
+            if (date != 0) {
+                args.putInt("date", date);
+            }
+            if (getMessagesController().checkCanOpenChat(args, MediaCalendarActivity.this)) {
+                // TODO prepareBlurBitmap();
+                presentFragmentAsPreview(new ChatActivity(args));
+            }
+            return true;
+        }
+
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 pressed = true;
                 pressedX = event.getX();
                 pressedY = event.getY();
+                getHandler().removeCallbacks(longPressedRunnable);
+                getHandler().postDelayed(longPressedRunnable, ViewConfiguration.getLongPressTimeout());
             } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                if (inPreviewMode) {
+                    finishPreviewFragment();
+                }
+                getHandler().removeCallbacks(longPressedRunnable);
                 if (pressed) {
-                    for (int i = 0; i < imagesByDays.size(); i++) {
-                        if (imagesByDays.valueAt(i).getDrawRegion().contains(pressedX, pressedY)) {
-                            if (callback != null) {
+                    if (callback != null) {
+                        for (int i = 0; i < imagesByDays.size(); i++) {
+                            if (imagesByDays.valueAt(i).getDrawRegion().contains(pressedX, pressedY)) {
                                 PeriodDay periodDay = messagesByDays.valueAt(i);
                                 callback.onDateSelected(periodDay.messageObject.getId(), periodDay.startOffset);
                                 finishFragment();
@@ -481,8 +525,23 @@ public class MediaCalendarActivity extends BaseFragment {
                             }
                         }
                     }
+                    if (chatCallback != null) {
+                        for (int i = 0; i < dayHolders.size(); i++) {
+                            DayHolder dayHolder = dayHolders.valueAt(i);
+                            if (dayHolder.getDrawRegion().contains(pressedX, pressedY)) {
+                                chatCallback.onDateSelected(dayHolder.date);
+                                finishFragment();
+                                break;
+                            }
+                        }
+                    }
                 }
                 pressed = false;
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                if (inPreviewMode) {
+                    // TODO movePreviewFragment(event.getY());
+                }
+                getHandler().removeCallbacks(longPressedRunnable);
             } else if (event.getAction() == MotionEvent.ACTION_CANCEL) {
                 pressed = false;
             }
@@ -499,10 +558,17 @@ public class MediaCalendarActivity extends BaseFragment {
             float xStep = getMeasuredWidth() / 7f;
             float yStep = AndroidUtilities.dp(44 + 8);
             for (int i = 0; i < daysInMonth; i++) {
+                float size = AndroidUtilities.dp(44);
                 float cx = xStep * currentColumn + xStep / 2f;
-                float cy = yStep * currentCell + yStep / 2f + AndroidUtilities.dp(44);
+                float cy = yStep * currentCell + yStep / 2f + size;
+                float x = cx - AndroidUtilities.dp(44) / 2f;
+                float y = cy - AndroidUtilities.dp(44) / 2f;
                 int nowTime = (int) (System.currentTimeMillis() / 1000L);
-                if (nowTime < startMonthTime + (i + 1) * 86400) {
+                int time = startMonthTime + (i + 1) * 86400;
+
+                dayHolders.get(i).setImageCoords(x, y, size, size);
+
+                if (nowTime < time) {
                     int oldAlpha = textPaint.getAlpha();
                     textPaint.setAlpha((int) (oldAlpha * 0.3f));
                     canvas.drawText(Integer.toString(i + 1), cx, cy + AndroidUtilities.dp(5), textPaint);
@@ -536,11 +602,12 @@ public class MediaCalendarActivity extends BaseFragment {
                             float s = 0.8f + 0.2f * alpha;
                             canvas.scale(s, s,cx, cy);
                         }
+
+                        imagesByDays.get(i).setImageCoords(x, y, size, size);
                         imagesByDays.get(i).setAlpha(messagesByDays.get(i).enterAlpha);
-                        imagesByDays.get(i).setImageCoords(cx - AndroidUtilities.dp(44) / 2f, cy - AndroidUtilities.dp(44) / 2f, AndroidUtilities.dp(44), AndroidUtilities.dp(44));
                         imagesByDays.get(i).draw(canvas);
                         blackoutPaint.setColor(ColorUtils.setAlphaComponent(Color.BLACK, (int) (messagesByDays.get(i).enterAlpha * 80)));
-                        canvas.drawCircle(cx, cy, AndroidUtilities.dp(44) / 2f, blackoutPaint);
+                        canvas.drawCircle(cx, cy, size / 2f, blackoutPaint);
                         messagesByDays.get(i).wasDrawn = true;
                         if (alpha != 1f) {
                             canvas.restore();
@@ -599,8 +666,16 @@ public class MediaCalendarActivity extends BaseFragment {
         this.callback = callback;
     }
 
+    public void setChatCallback(ChatCallback callback) {
+        this.chatCallback = callback;
+    }
+
     public interface Callback {
         void onDateSelected(int messageId, int startOffset);
+    }
+
+    public interface ChatCallback {
+        void onDateSelected(int date);
     }
 
     private class PeriodDay {
@@ -609,6 +684,23 @@ public class MediaCalendarActivity extends BaseFragment {
         float enterAlpha = 1f;
         float startEnterDelay = 1f;
         boolean wasDrawn;
+    }
+
+    private class DayHolder {
+        final int date;
+        private RectF drawRegion = new RectF();
+
+        DayHolder(int date) {
+            this.date = date;
+        }
+
+        RectF getDrawRegion() {
+            return drawRegion;
+        }
+
+        void setImageCoords(float x, float y, float width, float height) {
+            drawRegion.set(x, y, x + width, y + height);
+        }
     }
 
     @Override
