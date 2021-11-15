@@ -778,6 +778,8 @@
     <string name="EventLogToggledInvitesOff">un1 disabled group invites</string>
     <string name="EventLogToggledSignaturesOn">un1 enabled signatures</string>
     <string name="EventLogToggledSignaturesOff">un1 disabled signatures</string>
+    <string name="EventLogToggledNoForwardsOn">un1 enabled saving content restriction</string>
+    <string name="EventLogToggledNoForwardsOff">un1 disabled saving content restriction</string>
     <string name="EventLogRestrictedUntil">changed permissions for %1$s\n\nDuration: %2$s</string>
     <string name="EventLogDefaultPermissions">changed default permissions</string>
     <string name="EventLogRestrictedSendStickers">Send stickers &amp; GIFs</string>
@@ -898,6 +900,14 @@
     <string name="OpenChannel">VIEW CHANNEL</string>
     <string name="OpenMessage">VIEW MESSAGE</string>
     <string name="OpenBot">OPEN BOT</string>
+    <string name="ChannelSavingContentTitle">Saving content</string>
+    <string name="ChannelSavingContentSettings">Restrict saving content</string>
+    <string name="ChannelSavingContentHelp">Participants won’t be able to forward messages from this channel or save media files.</string>
+    <string name="ChannelSavingContentHelpGroup">Participants won’t be able to forward messages from this group or save media files.</string>
+    <string name="NoForwardsHintChannel">Forwards from this channel\nare restricted.</string>
+    <string name="NoForwardsHintGroup">Forwards from this group\nare restricted.</string>
+    <string name="SharedMediaNoForwardsHintChannel">Forwards from this channel are restricted</string>
+    <string name="SharedMediaNoForwardsHintGroup">Forwards from this group are restricted</string>
     <string name="SponsoredMessage">sponsored</string>
     <string name="SponsoredMessageInfo">What are sponsored\nmessages?</string>
     <string name="SponsoredMessageInfoDescription1">Unlike other apps, Telegram never uses your private data to target ads. You are seeing this message only because someone chose this public one-to-many channel as a space to promote their messages. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored message.</string>
@@ -1147,6 +1157,7 @@
     <string name="MessageScheduledOn">Scheduled for %1$s</string>
     <string name="MessageScheduledUntilOnline">Scheduled until online</string>
     <string name="MessageScheduledLimitReached">Sorry, you can not schedule more than 100 messages.</string>
+    <string name="MessageNoForwardsRestriction">The admins of this group have restricted you from forwarding messages.</string>
     <string name="MessageScheduledBotAction">This action will become available after the message is published.</string>
     <string name="MessageScheduledVote">Voting will become available after the message is published.</string>
     <string name="MessageScheduledVoteResults">Poll results will become available after the message is published.</string>

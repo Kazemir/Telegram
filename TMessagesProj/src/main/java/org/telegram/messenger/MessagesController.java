@@ -6073,6 +6073,18 @@ public class MessagesController extends BaseController implements NotificationCe
         if (threads.get(threadMsgId) != null) {
             return false;
         }
+        if (DialogObject.isChatDialog(dialogId)) {
+            TLRPC.Chat chat = getChat(-dialogId);
+            boolean isSendAsAvailable = (chat.megagroup && !TextUtils.isEmpty(chat.username))
+                || chat.has_geo
+                || (chat.megagroup && chat.has_link);
+            if (isSendAsAvailable) {
+                TLRPC.ChatFull chatFull = getChatFull(-dialogId);
+                if (chatFull.default_send_as != null && chatFull.default_send_as.user_id != getUserConfig().getClientUserId()) {
+                    return false;
+                }
+            }
+        }
         if (!DialogObject.isEncryptedDialog(dialogId)) {
             TLRPC.TL_messages_setTyping req = new TLRPC.TL_messages_setTyping();
             if (threadMsgId != 0) {
@@ -9093,6 +9105,18 @@ public class MessagesController extends BaseController implements NotificationCe
     public void toogleChannelSignatures(long chatId, boolean enabled) {
         TLRPC.TL_channels_toggleSignatures req = new TLRPC.TL_channels_toggleSignatures();
         req.channel = getInputChannel(chatId);
+        req.enabled = enabled;
+        getConnectionsManager().sendRequest(req, (response, error) -> {
+            if (response != null) {
+                processUpdates((TLRPC.Updates) response, false);
+                AndroidUtilities.runOnUIThread(() -> getNotificationCenter().postNotificationName(NotificationCenter.updateInterfaces, UPDATE_MASK_CHAT));
+            }
+        }, ConnectionsManager.RequestFlagInvokeAfter);
+    }
+
+    public void toggleChannelNoForwards(long chatId, boolean enabled) {
+        TLRPC.TL_messages_toggleNoForwards req = new TLRPC.TL_messages_toggleNoForwards();
+        req.peer = getInputPeer(-chatId);
         req.enabled = enabled;
         getConnectionsManager().sendRequest(req, (response, error) -> {
             if (response != null) {

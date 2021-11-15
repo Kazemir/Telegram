@@ -73,7 +73,7 @@ public class HintView extends FrameLayout {
         textView.setTextColor(getThemedColor(Theme.key_chat_gifSaveHintText));
         textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         textView.setMaxLines(2);
-        if (type == 7 || type == 8 || type == 9) {
+        if (type == 7 || type == 8 || type == 9 || type == 10) {
             textView.setMaxWidth(AndroidUtilities.dp(310));
         } else if (type == 4) {
             textView.setMaxWidth(AndroidUtilities.dp(280));
@@ -87,12 +87,12 @@ public class HintView extends FrameLayout {
             addView(textView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 30, Gravity.LEFT | Gravity.TOP, 0, topArrow ? 6 : 0, 0, topArrow ? 0 : 6));
         } else {
             textView.setGravity(Gravity.LEFT | Gravity.TOP);
-            textView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(currentType == 7 || currentType == 8 || currentType == 9 ? 6 : 3), getThemedColor(Theme.key_chat_gifSaveHintBackground)));
+            textView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(currentType == 7 || currentType == 8 || currentType == 9 || currentType == 10 ? 6 : 3), getThemedColor(Theme.key_chat_gifSaveHintBackground)));
             if (currentType == TYPE_POLL_VOTE || currentType == 4) {
                 textView.setPadding(AndroidUtilities.dp(9), AndroidUtilities.dp(6), AndroidUtilities.dp(9), AndroidUtilities.dp(7));
             } else if (currentType == 2) {
                 textView.setPadding(AndroidUtilities.dp(7), AndroidUtilities.dp(6), AndroidUtilities.dp(7), AndroidUtilities.dp(7));
-            } else if (currentType == 7 || currentType == 8 || currentType == 9) {
+            } else if (currentType == 7 || currentType == 8 || currentType == 9 || currentType == 10) {
                 textView.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(7), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
             } else {
                 textView.setPadding(AndroidUtilities.dp(currentType == 0 ? 54 : 5), AndroidUtilities.dp(6), AndroidUtilities.dp(5), AndroidUtilities.dp(7));
@@ -119,7 +119,7 @@ public class HintView extends FrameLayout {
     public void setBackgroundColor(int background, int text) {
         textView.setTextColor(text);
         arrowImageView.setColorFilter(new PorterDuffColorFilter(background, PorterDuff.Mode.MULTIPLY));
-        textView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(currentType == 7 || currentType == 8 ? 6 : 3), background));
+        textView.setBackground(Theme.createRoundRectDrawable(AndroidUtilities.dp(currentType == 7 || currentType == 8 || currentType == 9 || currentType == 10 ? 6 : 3), background));
     }
 
     public void setOverrideText(String text) {
@@ -345,6 +345,8 @@ public class HintView extends FrameLayout {
             top += view.getMeasuredHeight() + getMeasuredHeight() + AndroidUtilities.dp(8);
         } else if (currentType == 8) {
             top -= AndroidUtilities.dp(10);
+        } else if (currentType == 10) {
+            top += AndroidUtilities.dp(4);
         }
 
         int centerX;

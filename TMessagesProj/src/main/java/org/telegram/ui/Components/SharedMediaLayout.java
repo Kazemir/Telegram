@@ -50,13 +50,12 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.exoplayer2.util.Log;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
@@ -385,6 +384,8 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
     private ActionBarMenuItem searchItem;
     public ImageView photoVideoOptionsItem;
     private ActionBarMenuItem forwardItem;
+    @Nullable
+    private HintView forwardItemHint;
     private ActionBarMenuItem gotoItem;
     private int searchItemState;
     private Drawable pinnedHeaderShadowDrawable;
@@ -1425,13 +1426,41 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
             actionModeViews.add(gotoItem);
             gotoItem.setOnClickListener(v -> onActionBarItemClick(gotochat));
 
+            boolean allowForwards = true;
+            final boolean isChannel;
+            if (DialogObject.isChatDialog(dialog_id)) {
+                TLRPC.Chat currentChat = profileActivity.getMessagesController().getChat(-dialog_id);
+                allowForwards = !currentChat.noforwards;
+                isChannel = ChatObject.isChannel(currentChat) && !currentChat.megagroup;
+            } else {
+                isChannel = false;
+            }
             forwardItem = new ActionBarMenuItem(context, null, Theme.getColor(Theme.key_actionBarActionModeDefaultSelector), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), false);
             forwardItem.setIcon(R.drawable.msg_forward);
             forwardItem.setContentDescription(LocaleController.getString("Forward", R.string.Forward));
             forwardItem.setDuplicateParentStateEnabled(false);
             actionModeLayout.addView(forwardItem, new LinearLayout.LayoutParams(AndroidUtilities.dp(54), ViewGroup.LayoutParams.MATCH_PARENT));
             actionModeViews.add(forwardItem);
-            forwardItem.setOnClickListener(v -> onActionBarItemClick(forward));
+            if (allowForwards) {
+                forwardItem.setAlpha(1f);
+                forwardItem.setOnClickListener(v -> onActionBarItemClick(forward));
+            } else {
+                forwardItem.setAlpha(0.5f);
+                forwardItem.setOnClickListener(v -> {
+                    if (forwardItemHint == null) {
+                        forwardItemHint = new HintView(context, 10);
+                        forwardItemHint.setShowingDuration(3000);
+                        forwardItemHint.setAlpha(0);
+                        forwardItemHint.setVisibility(View.INVISIBLE);
+                        forwardItemHint.setText(
+                            isChannel ? LocaleController.getString("SharedMediaNoForwardsHintChannel", R.string.SharedMediaNoForwardsHintChannel)
+                                : LocaleController.getString("SharedMediaNoForwardsHintGroup", R.string.SharedMediaNoForwardsHintGroup)
+                        );
+                        parent.getLayoutContainer().addView(forwardItemHint, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 10, 0, 10, 0));
+                    }
+                    forwardItemHint.showForView(forwardItem, true);
+                });
+            }
         }
         deleteItem = new ActionBarMenuItem(context, null, Theme.getColor(Theme.key_actionBarActionModeDefaultSelector), Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2), false);
         deleteItem.setIcon(R.drawable.msg_delete);
@@ -3236,6 +3265,9 @@ public class SharedMediaLayout extends FrameLayout implements NotificationCenter
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        if (forwardItemHint != null) {
+            forwardItemHint.hide();
+        }
         if (profileActivity.getParentLayout() != null && !profileActivity.getParentLayout().checkTransitionAnimation() && !checkTabsAnimationInProgress() && !isInPinchToZoomTouchMode) {
             if (ev != null) {
                 if (velocityTracker == null) {

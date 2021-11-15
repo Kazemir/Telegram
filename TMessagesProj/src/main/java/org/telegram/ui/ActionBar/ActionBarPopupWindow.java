@@ -21,8 +21,6 @@ import android.graphics.PorterDuffColorFilter;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
-
-import androidx.annotation.Keep;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +31,8 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.ScrollView;
+
+import androidx.annotation.Keep;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
@@ -96,6 +96,8 @@ public class ActionBarPopupWindow extends PopupWindow {
         private HashMap<View, Integer> positions = new HashMap<>();
         private int gapStartY = -1000000;
         private int gapEndY = -1000000;
+        private int gapBottomStartY = -1000000;
+        private int gapBottomEndY = -1000000;
         private Rect bgPaddings = new Rect();
 
         private ScrollView scrollView;
@@ -144,6 +146,8 @@ public class ActionBarPopupWindow extends PopupWindow {
                         int fixWidth = 0;
                         gapStartY = -1000000;
                         gapEndY = -1000000;
+                        gapBottomStartY = -1000000;
+                        gapBottomEndY = -1000000;
                         ArrayList<View> viewsToFix = null;
                         for (int a = 0, N = getChildCount(); a < N; a++) {
                             View view = getChildAt(a);
@@ -152,17 +156,23 @@ public class ActionBarPopupWindow extends PopupWindow {
                             }
                             Object tag = view.getTag(R.id.width_tag);
                             Object tag2 = view.getTag(R.id.object_tag);
-                            if (tag != null) {
+                            Object gapTag = view.getTag(R.id.gap_tag);
+                            if (tag != null || gapTag != null) {
                                 view.getLayoutParams().width = LayoutHelper.WRAP_CONTENT;
                             }
                             measureChildWithMargins(view, widthMeasureSpec, 0, heightMeasureSpec, 0);
-                            if (!(tag instanceof Integer) && tag2 == null) {
+
+                            if (!(tag instanceof Integer) && !(gapTag instanceof Integer) && tag2 == null) {
                                 maxWidth = Math.max(maxWidth, view.getMeasuredWidth());
                                 continue;
                             } else if (tag instanceof Integer) {
                                 fixWidth = Math.max((Integer) tag, view.getMeasuredWidth());
                                 gapStartY = view.getMeasuredHeight();
                                 gapEndY = gapStartY + AndroidUtilities.dp(6);
+                            } else if (gapTag instanceof Integer) {
+                                fixWidth = Math.max((Integer) gapTag, view.getMeasuredWidth());
+                                gapBottomStartY = view.getMeasuredHeight();
+                                gapBottomEndY = gapBottomStartY + AndroidUtilities.dp(6);
                             }
                             if (viewsToFix == null) {
                                 viewsToFix = new ArrayList<>();
@@ -332,13 +342,19 @@ public class ActionBarPopupWindow extends PopupWindow {
         @Override
         protected void onDraw(Canvas canvas) {
             if (backgroundDrawable != null) {
-                int start = gapStartY - scrollView.getScrollY();
-                int end = gapEndY - scrollView.getScrollY();
+                boolean isTopGapEnabled = gapStartY != -1000000;
+                boolean isBottomGapEnabled = !isTopGapEnabled && gapBottomStartY != -1000000;
+                boolean isGapEnabled = isTopGapEnabled || isBottomGapEnabled;
+                int finalGapStartY = isBottomGapEnabled ? gapBottomStartY : gapStartY;
+                int finalGapEndY = isBottomGapEnabled ? gapBottomEndY : gapEndY;
+                int start = finalGapStartY - scrollView.getScrollY();
+                int end = finalGapEndY - scrollView.getScrollY();
+
                 for (int a = 0; a < 2; a++) {
                     if (a == 1 && start < -AndroidUtilities.dp(16)) {
                         break;
                     }
-                    if (gapStartY != -1000000) {
+                    if (isGapEnabled) {
                         canvas.save();
                         canvas.clipRect(0, bgPaddings.top, getMeasuredWidth(), getMeasuredHeight());
                     }
@@ -350,22 +366,41 @@ public class ActionBarPopupWindow extends PopupWindow {
                         if (start > -AndroidUtilities.dp(16)) {
                             int h = (int) (getMeasuredHeight() * backScaleY);
                             if (a == 0) {
-                                backgroundDrawable.setBounds(0, -scrollView.getScrollY() + (gapStartY != -1000000 ? AndroidUtilities.dp(1) : 0), (int) (getMeasuredWidth() * backScaleX), (gapStartY != -1000000 ? Math.min(h, start + AndroidUtilities.dp(16)) : h));
+                                int topOffset;
+                                int bottomOffset;
+                                if (isTopGapEnabled) {
+                                    topOffset = AndroidUtilities.dp(1);
+                                    bottomOffset = Math.min(h, start + AndroidUtilities.dp(16));
+                                } else if (isBottomGapEnabled) {
+                                    topOffset = 0;
+                                    bottomOffset = h - start - AndroidUtilities.dp(8);
+                                } else {
+                                    topOffset = 0;
+                                    bottomOffset = h;
+                                }
+                                backgroundDrawable.setBounds(0, -scrollView.getScrollY() + topOffset, (int) (getMeasuredWidth() * backScaleX), bottomOffset);
                             } else {
                                 if (h < end) {
-                                    if (gapStartY != -1000000) {
+                                    if (isGapEnabled) {
                                         canvas.restore();
                                     }
                                     continue;
                                 }
-                                backgroundDrawable.setBounds(0, end, (int) (getMeasuredWidth() * backScaleX), h);
+                                int topOffset;
+                                if (isTopGapEnabled) {
+                                    topOffset = end;
+                                } else {
+                                    topOffset = h - end - AndroidUtilities.dp(8);
+                                }
+                                backgroundDrawable.setBounds(0, topOffset, (int) (getMeasuredWidth() * backScaleX), h);
                             }
                         } else {
-                            backgroundDrawable.setBounds(0, gapStartY < 0 ? 0 : -AndroidUtilities.dp(16), (int) (getMeasuredWidth() * backScaleX), (int) (getMeasuredHeight() * backScaleY));
+                            int topOffset = finalGapStartY < 0 ? 0 : -AndroidUtilities.dp(16);
+                            backgroundDrawable.setBounds(0, topOffset, (int) (getMeasuredWidth() * backScaleX), (int) (getMeasuredHeight() * backScaleY));
                         }
                     }
                     backgroundDrawable.draw(canvas);
-                    if (gapStartY != -1000000) {
+                    if (isGapEnabled) {
                         canvas.restore();
                     }
                 }

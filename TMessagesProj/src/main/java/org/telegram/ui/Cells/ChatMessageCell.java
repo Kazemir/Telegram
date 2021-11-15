@@ -68,8 +68,6 @@ import android.widget.Toast;
 
 import androidx.core.graphics.ColorUtils;
 
-import com.google.android.exoplayer2.util.Log;
-
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
@@ -9606,6 +9604,12 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
             if (!currentMessagesGroup.isDocuments && !currentPosition.last) {
                 return false;
             }
+        }
+        if (currentChat == null) {
+            updateCurrentUserAndChat();
+        }
+        if (currentChat != null && currentChat.noforwards) {
+            return false;
         }
         return messageObject.needDrawShareButton();
     }
